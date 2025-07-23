@@ -1,0 +1,31 @@
+{
+  "timestamp": "2025-07-12T23:35:47.080075",
+  "dashboard_results": {
+    "correlation": 0.3456402616234567,
+    "effective_breadth": 2.199251199736638,
+    "alerts": [
+      "\ud83d\udfe2 NORMAL CORRELATION: Current hedging adequate"
+    ],
+    "volatility": 0.015383935303772045
+  },
+  "analytics_results": {
+    "ml_prediction": 0.4410977850466855,
+    "sector_rotation": "ROTATE_TO_BANKING",
+    "best_stock": "CTG",
+    "risk_regime": "STRESSED",
+    "risk_level": "MEDIUM"
+  },
+  "realtime_results": {
+    "updates_processed": 6,
+    "alerts_generated": 1,
+    "rebalances_triggered": 1,
+    "final_correlation": 0.3205045674097362
+  },
+  "backtest_results": {
+    "no_hedge_sharpe": 0.34642358196334405,
+    "hedged_sharpe": 0.4503506565523473,
+    "improvement": 0.3,
+    "max_drawdown": -0.085,
+    "volatility": 0.152
+  }
+}

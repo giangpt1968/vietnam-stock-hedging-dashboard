@@ -1,0 +1,30 @@
+# Vietnam Stock Hedging Dashboard - Dependencies
+# Core web framework
+streamlit>=1.28.0
+
+# Data visualization
+plotly>=5.15.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Data processing and analysis
+pandas>=2.0.0
+numpy>=1.24.0
+scipy>=1.11.0
+
+# Machine Learning
+scikit-learn>=1.3.0
+statsmodels>=0.14.0
+
+# Financial data
+yfinance>=0.2.18
+requests>=2.31.0
+
+# Utilities
+python-dateutil>=2.8.0
+openpyxl>=3.1.0
+xlsxwriter>=3.1.0
+
+# Optional: Advanced features
+# tensorflow>=2.13.0  # Uncomment for ML models
+# torch>=2.0.0        # Uncomment for PyTorch models 
