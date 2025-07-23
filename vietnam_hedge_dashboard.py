@@ -2312,6 +2312,86 @@ class VietnamHedgeDashboard:
         
         st.plotly_chart(fig, use_container_width=True)
         
+        # Key Performance Metrics Summary for Portfolio Evolution
+        st.write("**📊 Key Performance Metrics Summary**")
+        
+        # Calculate key metrics for each strategy
+        perf_metrics = []
+        for strategy, data in backtest_results.items():
+            portfolio_values = data['portfolio_values']
+            portfolio_returns = portfolio_values.pct_change().dropna()
+            
+            # Calculate metrics
+            total_return = (portfolio_values.iloc[-1] / portfolio_values.iloc[0] - 1) * 100
+            cagr = ((portfolio_values.iloc[-1] / portfolio_values.iloc[0]) ** (252 / len(portfolio_values)) - 1) * 100
+            volatility = portfolio_returns.std() * np.sqrt(252) * 100
+            sharpe = (portfolio_returns.mean() * 252) / (portfolio_returns.std() * np.sqrt(252)) if portfolio_returns.std() > 0 else 0
+            
+            # Max drawdown calculation
+            running_max = portfolio_values.expanding().max()
+            drawdown = (portfolio_values - running_max) / running_max * 100
+            max_drawdown = drawdown.min()
+            
+            # Win rate
+            win_rate = (portfolio_returns > 0).mean() * 100
+            
+            # Final value
+            final_value = portfolio_values.iloc[-1]
+            
+            perf_metrics.append({
+                'Strategy': strategy.replace('_', ' ').title(),
+                'Final Value (VND)': f"{final_value:,.0f}",
+                'Total Return (%)': f"{total_return:+.1f}%",
+                'CAGR (%)': f"{cagr:+.1f}%",
+                'Volatility (%)': f"{volatility:.1f}%",
+                'Sharpe Ratio': f"{sharpe:.2f}",
+                'Max Drawdown (%)': f"{max_drawdown:.1f}%",
+                'Win Rate (%)': f"{win_rate:.1f}%"
+            })
+        
+        # Create performance metrics dataframe
+        perf_df = pd.DataFrame(perf_metrics)
+        
+        # Style the dataframe with color coding
+        def highlight_best_worst(s):
+            """Highlight best (green) and worst (red) values in each column"""
+            if s.name in ['Total Return (%)', 'CAGR (%)', 'Sharpe Ratio', 'Win Rate (%)']:
+                # Higher is better
+                is_max = s == s.max()
+                is_min = s == s.min()
+                return ['background-color: lightgreen' if v else 'background-color: lightcoral' if m else '' 
+                        for v, m in zip(is_max, is_min)]
+            elif s.name in ['Volatility (%)', 'Max Drawdown (%)']:
+                # Lower is better (for drawdown, less negative is better)
+                if s.name == 'Max Drawdown (%)':
+                    # For drawdown, convert to numeric for comparison (remove % and convert)
+                    numeric_s = pd.to_numeric(s.str.replace('%', ''))
+                    is_best = numeric_s == numeric_s.max()  # Less negative is better
+                    is_worst = numeric_s == numeric_s.min()  # More negative is worse
+                else:
+                    # For volatility, lower is better
+                    numeric_s = pd.to_numeric(s.str.replace('%', ''))
+                    is_best = numeric_s == numeric_s.min()
+                    is_worst = numeric_s == numeric_s.max()
+                return ['background-color: lightgreen' if v else 'background-color: lightcoral' if w else '' 
+                        for v, w in zip(is_best, is_worst)]
+            else:
+                return ['' for _ in s]
+        
+        # Display the styled dataframe
+        styled_df = perf_df.style.apply(highlight_best_worst, axis=0)
+        st.dataframe(styled_df, use_container_width=True)
+        
+        # Add interpretation note
+        st.info("""
+        **📖 Performance Metrics Interpretation:**
+        - 🟢 **Green**: Best performing strategy for this metric
+        - 🔴 **Red**: Worst performing strategy for this metric
+        - **Sharpe Ratio**: Risk-adjusted returns (higher is better)
+        - **Max Drawdown**: Worst peak-to-trough decline (less negative is better)
+        - **Win Rate**: Percentage of profitable days (higher is better)
+        """)
+        
         # 3. Drawdown Analysis
         st.subheader("📉 Maximum Drawdown Analysis")
         
