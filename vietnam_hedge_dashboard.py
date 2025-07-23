@@ -1639,6 +1639,25 @@ class VietnamHedgeDashboard:
                     f"vs Market: {portfolio_vol - market_vol:+.2%}"
                 )
             
+            # Add explanation section before performance metrics
+            st.info("""
+            **💡 Understanding Hedging Performance:**
+            
+            🎯 **Hedging reduces absolute returns but should improve risk-adjusted returns!**
+            
+            - **No Hedge**: Gets market returns + stock-specific returns (higher returns, higher risk)
+            - **Market Hedge**: Removes market beta (lower returns, lower systematic risk)  
+            - **Sector Hedge**: Removes sector exposure (lowest returns, lowest systematic risk)
+            
+            **📊 Key Metrics to Watch:**
+            - **Sharpe Ratio**: Return per unit of risk (should INCREASE with hedging)
+            - **Sortino Ratio**: Return per unit of downside risk (should INCREASE)
+            - **Maximum Drawdown**: Worst losses (should DECREASE with hedging)
+            - **Volatility**: Daily fluctuations (should DECREASE with hedging)
+            
+            **🎯 Goal**: Higher Sharpe ratios + Lower drawdowns = Better risk-adjusted performance
+            """)
+            
             # Additional performance summary
             st.write("**📋 Performance Summary**")
             performance_summary = pd.DataFrame({
@@ -2129,6 +2148,41 @@ class VietnamHedgeDashboard:
                 help="Run probabilistic analysis for strategy robustness (takes longer)"
             )
         
+        # Portfolio weighting method for backtesting
+        st.subheader("⚖️ Portfolio Weighting Method")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            backtest_weight_method = st.selectbox(
+                "Weighting Scheme for Backtesting",
+                ["Equal Weight", "Inverse Volatility", "Market Cap Weight"],
+                help="Choose how to weight stocks in backtesting portfolios"
+            )
+        
+        with col2:
+            if backtest_weight_method == "Inverse Volatility":
+                backtest_vol_period = st.selectbox(
+                    "Volatility Period (days)",
+                    [20, 30, 60, 90],
+                    index=1,
+                    help="Period for volatility calculation"
+                )
+            else:
+                backtest_vol_period = 30  # Default
+        
+        with col3:
+            if backtest_weight_method == "Inverse Volatility":
+                backtest_min_weight = st.slider(
+                    "Min Weight (%)",
+                    min_value=5.0,
+                    max_value=25.0,
+                    value=10.0,
+                    step=1.0
+                ) / 100
+            else:
+                backtest_min_weight = 0.1  # Default
+        
         # Run backtest button
         if st.button("🚀 Run Comprehensive Backtest", type="primary"):
             if not strategies:
@@ -2261,54 +2315,52 @@ class VietnamHedgeDashboard:
         # 3. Drawdown Analysis
         st.subheader("📉 Maximum Drawdown Analysis")
         
-        col1, col2 = st.columns(2)
+        # Drawdown Evolution Chart (full width on top)
+        fig_dd = go.Figure()
         
-        with col1:
-            # Drawdown comparison chart
-            fig_dd = go.Figure()
+        for strategy, data in backtest_results.items():
+            drawdown_data = data['drawdowns']['drawdown_series']
             
-            for strategy, data in backtest_results.items():
-                drawdown_data = data['drawdowns']['drawdown_series']
-                
-                fig_dd.add_trace(go.Scatter(
-                    x=drawdown_data.index,
-                    y=drawdown_data.values * 100,  # Convert to percentage
-                    mode='lines',
-                    name=strategy.replace('_', ' ').title(),
-                    line=dict(color=colors.get(strategy, '#95A5A6')),
-                    fill='tonexty' if strategy == list(backtest_results.keys())[0] else 'tonexty',
-                    hovertemplate=f'<b>{strategy.title()}</b><br>' +
-                                 'Date: %{x}<br>' +
-                                 'Drawdown: %{y:.1f}%<extra></extra>'
-                ))
-            
-            fig_dd.update_layout(
-                title="Drawdown Evolution",
-                xaxis_title="Date",
-                yaxis_title="Drawdown (%)",
-                hovermode='x unified',
-                height=400
-            )
-            
-            st.plotly_chart(fig_dd, use_container_width=True)
+            fig_dd.add_trace(go.Scatter(
+                x=drawdown_data.index,
+                y=drawdown_data.values * 100,  # Convert to percentage
+                mode='lines',
+                name=strategy.replace('_', ' ').title(),
+                line=dict(color=colors.get(strategy, '#95A5A6')),
+                fill='tonexty' if strategy == list(backtest_results.keys())[0] else 'tonexty',
+                hovertemplate=f'<b>{strategy.title()}</b><br>' +
+                             'Date: %{x}<br>' +
+                             'Drawdown: %{y:.1f}%<extra></extra>'
+            ))
         
-        with col2:
-            # Drawdown statistics table
-            st.write("**Drawdown Statistics**")
-            
-            dd_stats = []
-            for strategy, data in backtest_results.items():
-                dd_data = data['drawdowns']
-                dd_stats.append({
-                    'Strategy': strategy.replace('_', ' ').title(),
-                    'Max Drawdown': f"{dd_data['max_drawdown']:.1%}",
-                    'Current Drawdown': f"{dd_data['current_drawdown']:.1%}",
-                    'Avg Drawdown': f"{dd_data['avg_drawdown']:.1%}",
-                    'Avg Duration (days)': f"{dd_data['drawdown_duration']:.0f}"
-                })
-            
-            dd_df = pd.DataFrame(dd_stats)
-            st.dataframe(dd_df, use_container_width=True)
+        fig_dd.update_layout(
+            title="📈 Drawdown Evolution",
+            xaxis_title="Date",
+            yaxis_title="Drawdown (%)",
+            hovermode='x unified',
+            height=450,
+            plot_bgcolor='rgba(248, 249, 250, 0.8)',
+            paper_bgcolor='white'
+        )
+        
+        st.plotly_chart(fig_dd, use_container_width=True)
+        
+        # Drawdown Statistics Table (full width below chart)
+        st.write("**📊 Drawdown Statistics**")
+        
+        dd_stats = []
+        for strategy, data in backtest_results.items():
+            dd_data = data['drawdowns']
+            dd_stats.append({
+                'Strategy': strategy.replace('_', ' ').title(),
+                'Max Drawdown': f"{dd_data['max_drawdown']:.1%}",
+                'Current Drawdown': f"{dd_data['current_drawdown']:.1%}",
+                'Avg Drawdown': f"{dd_data['avg_drawdown']:.1%}",
+                'Avg Duration (days)': f"{dd_data['drawdown_duration']:.0f}"
+            })
+        
+        dd_df = pd.DataFrame(dd_stats)
+        st.dataframe(dd_df, use_container_width=True)
         
         # 4. Risk-Return Scatter Plot
         st.subheader("⚖️ Risk-Return Analysis")
@@ -2418,45 +2470,45 @@ class VietnamHedgeDashboard:
                 mc_results = backtest_engine.get_monte_carlo_analysis(n_simulations=1000)
             
             if mc_results:
-                col1, col2 = st.columns(2)
+                # Monte Carlo Results Table (full width on top)
+                st.write("**📊 Monte Carlo Simulation Results**")
+                mc_data = []
+                for strategy, results in mc_results.items():
+                    mc_data.append({
+                        'Strategy': strategy.replace('_', ' ').title(),
+                        'Mean Return': f"{results['mean_return']:.1%}",
+                        'Std Deviation': f"{results['std_return']:.1%}",
+                        '5th Percentile': f"{results['percentile_5']:.1%}",
+                        '95th Percentile': f"{results['percentile_95']:.1%}",
+                        'Success Rate': f"{results['success_rate']:.1%}"
+                    })
                 
-                with col1:
-                    # Monte Carlo results table
-                    mc_data = []
-                    for strategy, results in mc_results.items():
-                        mc_data.append({
-                            'Strategy': strategy.replace('_', ' ').title(),
-                            'Mean Return': f"{results['mean_return']:.1%}",
-                            'Std Deviation': f"{results['std_return']:.1%}",
-                            '5th Percentile': f"{results['percentile_5']:.1%}",
-                            '95th Percentile': f"{results['percentile_95']:.1%}",
-                            'Success Rate': f"{results['success_rate']:.1%}"
-                        })
-                    
-                    mc_df = pd.DataFrame(mc_data)
-                    st.dataframe(mc_df, use_container_width=True)
+                mc_df = pd.DataFrame(mc_data)
+                st.dataframe(mc_df, use_container_width=True)
                 
-                with col2:
-                    # Success rate chart
-                    strategies = list(mc_results.keys())
-                    success_rates = [mc_results[s]['success_rate'] * 100 for s in strategies]
-                    
-                    fig_success = go.Figure(go.Bar(
-                        x=[s.replace('_', ' ').title() for s in strategies],
-                        y=success_rates,
-                        marker_color=[colors.get(s, '#95A5A6') for s in strategies],
-                        text=[f"{rate:.1f}%" for rate in success_rates],
-                        textposition='auto'
-                    ))
-                    
-                    fig_success.update_layout(
-                        title="Strategy Success Rate (Monte Carlo)",
-                        xaxis_title="Strategy",
-                        yaxis_title="Success Rate (%)",
-                        height=400
-                    )
-                    
-                    st.plotly_chart(fig_success, use_container_width=True)
+                # Strategy Success Rate Chart (full width below table)
+                st.write("**📈 Strategy Success Rate Comparison**")
+                strategies = list(mc_results.keys())
+                success_rates = [mc_results[s]['success_rate'] * 100 for s in strategies]
+                
+                fig_success = go.Figure(go.Bar(
+                    x=[s.replace('_', ' ').title() for s in strategies],
+                    y=success_rates,
+                    marker_color=[colors.get(s, '#95A5A6') for s in strategies],
+                    text=[f"{rate:.1f}%" for rate in success_rates],
+                    textposition='auto'
+                ))
+                
+                fig_success.update_layout(
+                    title="🎯 Strategy Success Rate (Monte Carlo Analysis)",
+                    xaxis_title="Strategy",
+                    yaxis_title="Success Rate (%)",
+                    height=450,
+                    plot_bgcolor='rgba(248, 249, 250, 0.8)',
+                    paper_bgcolor='white'
+                )
+                
+                st.plotly_chart(fig_success, use_container_width=True)
         
         # 7. Export Results
         st.subheader("💾 Export Results")
